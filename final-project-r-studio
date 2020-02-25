@@ -1,0 +1,94 @@
+data<- read.csv('CleanedData.csv')
+ 
+library(ggplot2)
+ 
+data$own_code <- as.factor(data$own_code)
+data$area_fips <- as.factor(data$area_fips)
+data$industry_code <- NULL
+ 
+set.seed(123) 
+smp_siz = floor(0.75*nrow(data)) 
+train_ind = sample(seq_len(nrow(data)),size = smp_siz) 
+train =data[train_ind,] 
+test=data[-train_ind,]
+ 
+library(psych)
+describe(data)
+describe(train)
+describe(test)
+ 
+library("PerformanceAnalytics")
+df1 <- data[,c(1:8)]
+chart.Correlation(df1, histogram=TRUE, pch=19)
+ 
+ggplot(data, aes(x=annual_avg_emplvl, y=avg_annual_pay, colour=own_code)) + geom_point()
+ggplot(data, aes(x=log(annual_avg_emplvl), y=avg_annual_pay, colour=own_code)) + geom_point()
+ggplot(data, aes(x=avg_annual_pay, colour=own_code)) + geom_histogram()
+ggplot(data, aes(x=log(annual_avg_emplvl), colour=own_code)) + geom_histogram()
+ 
+ggplot(data, aes(y=log(annual_avg_emplvl), colour=own_code)) + geom_boxplot()
+ggplot(data, aes(y=avg_annual_pay, colour=own_code)) + geom_boxplot()
+
+#########LINEAR REGRESSION#############
+ 
+fit1 <- lm(avg_annual_pay ~ own_code + year + log(annual_avg_emplvl), data = train)
+summary(fit1)
+ 
+pred_01 <- predict(fit1, train, se.fit=TRUE)
+pred_1 <- predict(fit1, test, se.fit=TRUE)
+mse01 <- mean((train$avg_annual_pay - predict.lm(fit1, train)) ^ 2)
+mse1 <- mean((test$avg_annual_pay - predict.lm(fit1, test)) ^ 2)
+ 
+ 
+mse01
+mse1
+mse1/mse01-1
+ 
+ggplot(train,aes(y = avg_annual_pay, x = log(annual_avg_emplvl), colour = own_code)) +
+  geom_point() + geom_smooth(aes(group=own_code), method = "lm", colour='black')
+
+ 
+########DECISION TREE MODEL############
+ 
+library(rpart)
+library(rpart.plot)
+fit2 <- rpart(avg_annual_pay ~ own_code + year + annual_avg_emplvl, data=train, method="anova") 
+rpart.plot(fit2)
+ 
+mse02 <- mean((train$avg_annual_pay - predict(fit2, train)) ^ 2)
+mse2 <- mean((test$avg_annual_pay - predict(fit2, test)) ^ 2)
+ 
+mse02
+mse2
+ 
+mse2/mse02-1
+ 
+#######SVM#############################
+library(e1071)
+fit3 <- svm(avg_annual_pay ~ area_fips + own_code + year + annual_avg_emplvl, data=train)
+summary(fit3)
+ 
+mse03 <- mean((train$avg_annual_pay - predict(fit3, train)) ^ 2)
+mse3 <- mean((test$avg_annual_pay - predict(fit3, test)) ^ 2)
+ 
+mse03
+mse3
+mse3/mse03-1
+ 
+########RANDOM FOREST ATTEMPT###############
+library(randomForest)
+ 
+train$own_code <- as.character(train$own_code)
+test$own_code <- as.character(test$own_code)
+ 
+set.seed(1267)
+fit5 <- randomForest(avg_annual_pay ~ own_code + year + annual_avg_emplvl, data=train)
+ 
+fit5
+ 
+mse04 <- mean((train$avg_annual_pay - predict(fit5, train)) ^ 2)
+mse4 <- mean((test$avg_annual_pay - predict(fit5, test)) ^ 2)
+ 
+mse04
+mse4
+mse4/mse04-1
